@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Calendar, User, AlertCircle, Users } from "lucide-react"
+import { Plus, Calendar, User, AlertCircle, Users, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,8 +13,8 @@ import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { requestNotificationPermission, showNotification } from "@/lib/notifications"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
 
 interface Todo {
   id: string
@@ -36,35 +36,27 @@ export default function TodoList() {
   const [priority, setPriority] = useState("medium")
   const [users, setUsers] = useState<string[]>([])
   const [selectedUser, setSelectedUser] = useState<string>("all")
-  
-  useEffect(() => {
-    requestNotificationPermission();
-    const savedTodos = localStorage.getItem("todos");
-    const savedName = localStorage.getItem("userName");
-    if (savedTodos) {
-      const parsedTodos: Todo[] = JSON.parse(savedTodos);
-      setTodos(parsedTodos);
-      // Extract unique users from todos
-      const uniqueUsers = Array.from(new Set(parsedTodos.map((todo) => todo.assignedTo)));
-      setUsers(uniqueUsers);
-    }
-    if (savedName) {
-      setUserName(savedName);
-    }
-  }, []);
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const { toast } = useToast()
 
+  // Load todos from localStorage
+  useEffect(() => {
+    const savedTodos = localStorage.getItem("todos")
+    if (savedTodos) {
+      const parsedTodos: Todo[] = JSON.parse(savedTodos)
+      setTodos(parsedTodos)
+      const uniqueUsers = Array.from(new Set(parsedTodos.map((todo) => todo.assignedTo)))
+      setUsers(uniqueUsers)
+    }
+  }, [])
+
+  // Save todos to localStorage
   useEffect(() => {
     localStorage.setItem("todos", JSON.stringify(todos))
-    // Update users list when todos change
     const uniqueUsers = Array.from(new Set(todos.map((todo) => todo.assignedTo)))
     setUsers(uniqueUsers)
   }, [todos])
-
-  useEffect(() => {
-    if (userName) {
-      localStorage.setItem("userName", userName)
-    }
-  }, [userName])
 
   const addTodo = () => {
     if (!newTodo.trim() || !userName.trim() || !date || !assignedTo) return
@@ -82,22 +74,21 @@ export default function TodoList() {
     setNewTodo("")
     setDate(undefined)
     setPriority("medium")
-    showNotification("New Task Added", {
-      body: `Task "${newTodo}" has been assigned to ${assignedTo}`,
-      icon: "/favicon.ico",
+    toast({
+      title: "New Task Added",
+      description: `Task "${newTodo}" has been assigned to ${assignedTo}`,
     })
+    setIsDialogOpen(false)
   }
 
   const toggleTodo = (todoId: string, completed: boolean) => {
     setTodos(
       todos.map((todo) => {
         if (todo.id === todoId) {
-          if (completed) {
-            showNotification("Task Completed", {
-              body: `Task "${todo.text}" has been completed`,
-              icon: "/favicon.ico",
-            })
-          }
+          toast({
+            title: completed ? "Task Completed" : "Task Uncompleted",
+            description: `Task "${todo.text}" has been ${completed ? "completed" : "marked as pending"}`,
+          })
           return { ...todo, completed }
         }
         return todo
@@ -105,7 +96,9 @@ export default function TodoList() {
     )
   }
 
-  const filteredTodos = selectedUser === "all" ? todos : todos.filter((todo) => todo.assignedTo === selectedUser)
+  const filteredUsers = users.filter((user) => user.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  const filteredTodos = todos.filter((todo) => (selectedUser === "all" ? true : todo.assignedTo === selectedUser))
 
   const groupedTodos = filteredTodos.reduce(
     (acc, todo) => {
@@ -130,14 +123,15 @@ export default function TodoList() {
       </section>
 
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="mb-8 flex justify-between items-center">
-          <Dialog>
+        <div className="mb-8 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="rounded-full">
-                <Plus className="mr-2 h-5 w-5" /> Add New Task
+              <Button size="lg" className="rounded-full w-full md:w-auto">
+                <Plus className="h-5 w-5 md:mr-2" />
+                <span className="hidden md:inline">Add New Task</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-lg">
               <DialogHeader>
                 <DialogTitle>Add New Task</DialogTitle>
               </DialogHeader>
@@ -196,7 +190,7 @@ export default function TodoList() {
                         {date ? format(date, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0" align="start">
                       <CalendarComponent mode="single" selected={date} onSelect={setDate} initialFocus />
                     </PopoverContent>
                   </Popover>
@@ -216,26 +210,42 @@ export default function TodoList() {
                   </Select>
                 </div>
 
-                <Button className="w-full" onClick={addTodo}>
+                <Button
+                  className="w-full"
+                  onClick={addTodo}
+                  disabled={!newTodo.trim() || !userName.trim() || !date || !assignedTo}
+                >
                   Add Task
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
 
-          <Select value={selectedUser} onValueChange={setSelectedUser}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by user" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user} value={user}>
-                  {user}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+            <div className="relative flex-1 md:w-[200px]">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Filter by user" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {filteredUsers.map((user) => (
+                  <SelectItem key={user} value={user}>
+                    {user}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <Tabs defaultValue="pending" className="w-full">

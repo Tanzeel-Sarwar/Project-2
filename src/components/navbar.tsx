@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { ChevronDown, Menu } from "lucide-react"
+import { ChevronDown, Menu, Boxes } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
@@ -23,13 +23,16 @@ export function Navbar() {
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-6 w-6" />
+          <Menu className="" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[300px] sm:w-[400px]">
         <SheetHeader>
-          <SheetTitle>Smart Tools Hub</SheetTitle>
+          <SheetTitle className="flex items-center gap-2">
+            <Boxes className="h-8 w-8" />
+            Smart Tools Hub
+          </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col space-y-4 mt-8">
           <Link
@@ -77,9 +80,12 @@ export function Navbar() {
 
   return (
     <header className="border-b relative z-50">
-      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
-        <Link href="/" className="text-xl font-semibold">
-          Smart Tools Hub
+      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-[70px]">
+        <Link href="/" className="flex items-center gap-2 ml-2 text-[21px] font-semibold">
+          <Boxes className="h-10 w-10 text-blue-600" />
+          <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+            Smart Tools
+          </span>
         </Link>
 
         <MobileMenu />
@@ -126,14 +132,6 @@ export function Navbar() {
           </div>
         </nav>
       </div>
-
-      {pathname.startsWith("/tools/") && (
-        <div className="bg-gray-50 px-4 py-2 border-b">
-          <div className="max-w-6xl mx-auto">
-            <h1 className="text-lg font-medium">{tools.find((t) => t.href === pathname)?.title}</h1>
-          </div>
-        </div>
-      )}
     </header>
   )
 }

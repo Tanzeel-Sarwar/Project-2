@@ -43,15 +43,28 @@ export default function Home() {
           </p>
         </div>
       </section>
-
+ 
       <section className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {tools.map((tool, index) => (
             <Link key={tool.title} href={tool.href}>
-              <Card className="h-full card-hover animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+              <Card
+                className="h-full transform-gpu transition-all duration-300 hover:scale-105 hover:-translate-y-1
+                          bg-gradient-to-br from-white to-gray-50
+                          shadow-[0.25rem_0.25rem_0.75rem_rgba(0,0,0,0.15),
+                                  inset_0.5rem_0.5rem_0.5rem_rgba(255,255,255,0.9),
+                                  inset_-0.25rem_-0.25rem_0.5rem_rgba(0,0,0,0.05)]
+                          rounded-xl border border-gray-200/50
+                          animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 <CardHeader className="text-center pb-2">
-                  <div className="mx-auto mb-4 transform transition-transform group-hover:scale-110">{tool.icon}</div>
-                  <CardTitle className="text-xl text-blue-600">{tool.title}</CardTitle>
+                  <div className="mx-auto mb-4 transform transition-all duration-300 hover:scale-110 hover:rotate-3">
+                    {tool.icon}
+                  </div>
+                  <CardTitle className="text-xl bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                    {tool.title}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="text-center text-gray-600">
                   <p>{tool.description}</p>

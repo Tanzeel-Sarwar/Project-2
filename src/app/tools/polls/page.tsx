@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { showNotification } from "@/lib/notifications"
+import { useToast } from "@/hooks/use-toast"
 
 interface Vote {
   userId: string
@@ -37,21 +37,20 @@ export default function Polls() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isAddingVoter, setIsAddingVoter] = useState(false)
   const [newVoterName, setNewVoterName] = useState("")
+  const { toast } = useToast()
 
+  // Load polls from localStorage
   useEffect(() => {
     const savedPolls = localStorage.getItem("polls")
-    const savedName = localStorage.getItem("pollsUserName")
-    if (savedPolls) setPolls(JSON.parse(savedPolls))
-    if (savedName) setUserName(savedName)
+    if (savedPolls) {
+      setPolls(JSON.parse(savedPolls))
+    }
   }, [])
 
+  // Save polls to localStorage
   useEffect(() => {
     localStorage.setItem("polls", JSON.stringify(polls))
   }, [polls])
-
-  useEffect(() => {
-    if (userName) localStorage.setItem("pollsUserName", userName)
-  }, [userName])
 
   const addPoll = () => {
     if (!newQuestion.trim() || newOptions.some((opt) => !opt.trim()) || !userName.trim()) return
@@ -70,9 +69,9 @@ export default function Polls() {
     setNewQuestion("")
     setNewOptions(["", ""])
     setIsDialogOpen(false)
-    showNotification("New Poll Created", {
-      body: `Poll "${newQuestion}" created by ${userName}`,
-      icon: "/favicon.ico",
+    toast({
+      title: "New Poll Created",
+      description: `Poll "${newQuestion}" created by ${userName}`,
     })
   }
 
@@ -82,41 +81,32 @@ export default function Polls() {
     setPolls(
       polls.map((poll) => {
         if (poll.id === pollId) {
-          const hasVoted = poll.options.some((opt) => opt.votes.some((vote) => vote.userName === voterName))
-
-          const updatedPoll = {
+          return {
             ...poll,
             options: poll.options.map((opt) => ({
               ...opt,
               votes:
                 opt.id === optionId
-                  ? [
-                      ...opt.votes.filter((v) => v.userName !== voterName),
-                      { userId: Date.now().toString(), optionId, userName: voterName },
-                    ]
-                  : opt.votes.filter((v) => v.userName !== voterName),
+                  ? [...opt.votes, { userId: Date.now().toString(), optionId, userName: voterName }]
+                  : opt.votes,
             })),
           }
-
-          if (!hasVoted) {
-            showNotification("Vote Recorded", {
-              body: `${voterName} voted on "${poll.question}"`,
-              icon: "/favicon.ico",
-            })
-          }
-
-          return updatedPoll
         }
         return poll
       }),
     )
+
+    toast({
+      title: "Vote Recorded",
+      description: `${voterName} voted on the poll`,
+    })
   }
 
   const deletePoll = (pollId: string) => {
     setPolls(polls.filter((poll) => poll.id !== pollId))
-    showNotification("Poll Deleted", {
-      body: "The poll has been deleted",
-      icon: "/favicon.ico",
+    toast({
+      title: "Poll Deleted",
+      description: "The poll has been deleted",
     })
   }
 
@@ -135,10 +125,11 @@ export default function Polls() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="lg" className="rounded-full bg-blue-600 hover:bg-blue-700">
-                <Plus className="mr-2 h-5 w-5" /> Create New Poll
+                <Plus className="h-5 w-5 md:mr-2" />
+                <span className="hidden md:inline">Create New Poll</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-lg">
               <DialogHeader>
                 <DialogTitle>Create New Poll</DialogTitle>
               </DialogHeader>
@@ -181,7 +172,11 @@ export default function Polls() {
                     Add Option
                   </Button>
                 )}
-                <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={addPoll}>
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={addPoll}
+                  disabled={!newQuestion.trim() || newOptions.some((opt) => !opt.trim()) || !userName.trim()}
+                >
                   Create Poll
                 </Button>
               </div>
@@ -192,13 +187,12 @@ export default function Polls() {
         <div className="space-y-6">
           {polls.map((poll) => {
             const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes.length, 0)
-            const uniqueVoters = new Set(poll.options.flatMap((opt) => opt.votes.map((v) => v.userName)))
 
             return (
               <Card key={poll.id} className="bg-white shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader className="flex flex-row items-start justify-between">
                   <div>
-                    <CardTitle>{poll.question}</CardTitle>
+                    <CardTitle className="text-[21px]">{poll.question}</CardTitle>
                     <p className="text-sm text-gray-500 mt-1">
                       Created by {poll.createdBy} on {poll.createdAt}
                     </p>
@@ -211,7 +205,7 @@ export default function Polls() {
                   <div className="flex items-center gap-2 mb-4">
                     <Users className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-500">
-                      {uniqueVoters.size} voter{uniqueVoters.size !== 1 ? "s" : ""}
+                      {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
                     </span>
                     <Button
                       variant="ghost"
@@ -228,7 +222,7 @@ export default function Polls() {
                   </div>
 
                   <Dialog open={isAddingVoter} onOpenChange={setIsAddingVoter}>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-lg">
                       <DialogHeader>
                         <DialogTitle>Add New Voter</DialogTitle>
                       </DialogHeader>
@@ -257,7 +251,6 @@ export default function Polls() {
                   <div className="space-y-4">
                     {poll.options.map((option) => {
                       const percentage = totalVotes === 0 ? 0 : (option.votes.length / totalVotes) * 100
-                      const hasVoted = option.votes.some((vote) => vote.userName === userName)
 
                       return (
                         <div key={option.id} className="space-y-2">
@@ -272,19 +265,13 @@ export default function Polls() {
                             <Progress value={percentage} className="flex-1" />
                             <Button
                               onClick={() => vote(poll.id, option.id, userName)}
-                              variant={hasVoted ? "default" : "outline"}
+                              variant="outline"
                               size="sm"
                               disabled={!userName}
-                              className={hasVoted ? "bg-blue-600 hover:bg-blue-700" : ""}
                             >
-                              {hasVoted ? "Voted" : "Vote"}
+                              Vote
                             </Button>
                           </div>
-                          {option.votes.length > 0 && (
-                            <div className="text-xs text-gray-500">
-                              Voters: {option.votes.map((v) => v.userName).join(", ")}
-                            </div>
-                          )}
                         </div>
                       )
                     })}

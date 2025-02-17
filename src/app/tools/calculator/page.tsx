@@ -1,75 +1,101 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { showNotification } from "@/lib/notifications"
+import { useToast } from "@/hooks/use-toast"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function Calculator() {
   const [display, setDisplay] = useState("")
-  const [result, setResult] = useState("")
+  const [expression, setExpression] = useState("")
   const [history, setHistory] = useState<string[]>([])
+  const { toast } = useToast()
 
-  const calculate = useCallback(() => {
-    try {
-      // Replace all visual operators with their JavaScript equivalents
-      const expression = display.replace(/×/g, "*").replace(/÷/g, "/")
-      // Use Function instead of eval for better security
-      const calculatedResult = new Function("return " + expression)()
-      const formattedResult = Number.isInteger(calculatedResult)
-        ? calculatedResult.toString()
-        : Number(calculatedResult).toFixed(4)
-      setResult(formattedResult)
-      setHistory((prev) => [`${display} = ${formattedResult}`, ...prev.slice(0, 4)])
-      showNotification("Calculation Complete", {
-        body: `${display} = ${formattedResult}`,
-        icon: "/favicon.ico",
-      })
-      setDisplay("")
-    } catch (error) {
-      console.error("Calculation error:", error) // Log the error
-      setResult("Error")
-      setDisplay("")
-      showNotification("Calculation Error", {
-        body: "Invalid expression",
-        icon: "/favicon.ico",
-      })
+  // Load history from localStorage
+  useEffect(() => {
+    const savedHistory = localStorage.getItem("calculatorHistory")
+    if (savedHistory) {
+      setHistory(JSON.parse(savedHistory))
     }
-  }, [display])
+  }, [])
+
+  // Save history to localStorage
+  useEffect(() => {
+    localStorage.setItem("calculatorHistory", JSON.stringify(history))
+  }, [history])
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      const key = e.key
-      if (key.match(/[0-9+\-*/.()]/)) {
+      // Handle numeric keys (both main keyboard and numpad)
+      if (e.key.match(/[0-9]/) || e.key === ".") {
         e.preventDefault()
-        setDisplay((prev) => prev + key)
-      } else if (key === "Enter") {
+        handleInput(e.key)
+      }
+      // Handle operators
+      else if (e.key.match(/[+\-*/%]/) || e.key === "Enter" || e.key === "=" || e.key === "(" || e.key === ")") {
         e.preventDefault()
-        calculate()
-      } else if (key === "Backspace") {
+        if (e.key === "Enter" || e.key === "=") {
+          calculate()
+        } else {
+          handleInput(e.key === "*" ? "×" : e.key === "/" ? "÷" : e.key)
+        }
+      }
+      // Handle backspace and delete
+      else if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault()
-        setDisplay((prev) => prev.slice(0, -1))
-      } else if (key === "Escape") {
+        handleDelete()
+      }
+      // Handle escape
+      else if (e.key === "Escape") {
         e.preventDefault()
-        setDisplay("")
-        setResult("")
+        handleClear()
       }
     }
 
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [calculate]) // Add `calculate` to the dependency array
+  }, [])
 
-  const handleClick = (value: string) => {
-    if (value === "C") {
+  const handleInput = (value: string) => {
+    setDisplay((prev) => prev + value)
+  }
+
+  const handleDelete = () => {
+    setDisplay((prev) => prev.slice(0, -1))
+    setExpression("")
+  }
+
+  const handleClear = () => {
+    setDisplay("")
+    setExpression("")
+  }
+
+  const calculate = () => {
+    try {
+      if (!display) return
+
+      const calculationExpression = display.replace(/×/g, "*").replace(/÷/g, "/")
+      const result = new Function("return " + calculationExpression)()
+      const formattedResult = Number.isInteger(result) ? result.toString() : Number(result).toFixed(4)
+
+      const calculationString = `${display} = ${formattedResult}`
+      setExpression(calculationString)
+      setDisplay(formattedResult)
+      setHistory((prev) => [calculationString, ...prev.slice(0, 19)])
+
+      toast({
+        title: "Calculation Complete",
+        description: calculationString,
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Calculation Error",
+        description: "Invalid expression",
+      })
       setDisplay("")
-      setResult("")
-    } else if (value === "=") {
-      calculate()
-    } else if (value === "⌫") {
-      setDisplay((prev) => prev.slice(0, -1))
-    } else {
-      setDisplay((prev) => prev + value)
+      setExpression("")
     }
   }
 
@@ -85,16 +111,24 @@ export default function Calculator() {
         </div>
       </section>
 
-      <div className="max-w-sm mx-auto p-4 animate-fade-in">
-        <Card className="p-4 shadow-lg bg-white transform hover:scale-[1.02] transition-all duration-300">
-          <div className="bg-gray-100 border rounded-lg p-4 mb-4 text-right text-2xl h-16 flex items-center justify-end overflow-hidden">
-            <div className="w-full truncate">{result || display || "0"}</div>
+      <div className="max-w-md mx-auto p-4 animate-fade-in">
+        <Card className="p-6 shadow-lg bg-white">
+          <div className="space-y-2 mb-4">
+            {expression && <div className="text-sm text-gray-500 text-right h-6">{expression}</div>}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 border rounded-lg p-4 text-right text-2xl h-16 flex items-center justify-end overflow-hidden shadow-inner">
+              <div className="w-full truncate font-mono">{display || "0"}</div>
+            </div>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-4 gap-2">
             {buttons.map((btn) => (
               <Button
                 key={btn}
-                onClick={() => handleClick(btn)}
+                onClick={() => {
+                  if (btn === "C") handleClear()
+                  else if (btn === "=") calculate()
+                  else if (btn === "⌫") handleDelete()
+                  else handleInput(btn)
+                }}
                 variant={
                   btn === "C" || btn === "⌫"
                     ? "destructive"
@@ -104,22 +138,34 @@ export default function Calculator() {
                         ? "outline"
                         : "secondary"
                 }
-                className="text-lg h-12 rounded-lg font-semibold transition-all duration-200 hover:scale-105 active:scale-95"
+                className="text-lg h-12 rounded-lg font-semibold transition-all duration-200 hover:scale-105 active:scale-95
+                         shadow-[0.1rem_0.1rem_0.3rem_rgba(0,0,0,0.1),
+                                 inset_0.2rem_0.2rem_0.3rem_rgba(255,255,255,0.5),
+                                 inset_-0.1rem_-0.1rem_0.2rem_rgba(0,0,0,0.05)]"
               >
                 {btn}
               </Button>
             ))}
           </div>
-          <div className="mt-4 p-2 bg-gray-100 rounded-lg max-h-24 overflow-y-auto">
-            <h3 className="text-sm font-semibold mb-2">History:</h3>
-            {history.map((item, index) => (
-              <div key={index} className="text-sm text-gray-600 mb-1 animate-fade-in">
-                {item}
-              </div>
-            ))}
-          </div>
+        </Card>
+
+        <Card className="mt-4 p-4">
+          <h3 className="text-lg font-semibold mb-4">History</h3>
+          <ScrollArea className="h-[200px]">
+            <div className="space-y-2">
+              {history.map((item, index) => (
+                <div
+                  key={index}
+                  className="p-2 rounded bg-gray-50 text-sm text-gray-600 animate-fade-in hover:bg-gray-100 transition-colors"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </Card>
       </div>
     </div>
   )
 }
+

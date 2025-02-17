@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
+import { Toaster } from "@/components/ui/toaster"
+import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,18 +19,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-      </head>
+    <html lang="en">
       <body className={inter.className}>
         <div className="flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow">{children}</main>
-          <footer className="py-6 text-center bg-gray-800 text-white mt-auto">
-            © {new Date().getFullYear()} Smart Tools Hub. All rights reserved.
-          </footer>
+          <Footer />
         </div>
+        <Toaster />
       </body>
     </html>
   )

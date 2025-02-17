@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { showNotification } from "@/lib/notifications"
+import { useToast } from "@/hooks/use-toast"
 
 interface Note {
   id: string
@@ -27,21 +27,20 @@ export default function Notes() {
   const [userName, setUserName] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
+  const { toast } = useToast()
 
+  // Load notes from localStorage
   useEffect(() => {
     const savedNotes = localStorage.getItem("notes")
-    const savedName = localStorage.getItem("notesUserName")
-    if (savedNotes) setNotes(JSON.parse(savedNotes))
-    if (savedName) setUserName(savedName)
+    if (savedNotes) {
+      setNotes(JSON.parse(savedNotes))
+    }
   }, [])
 
+  // Save notes to localStorage
   useEffect(() => {
     localStorage.setItem("notes", JSON.stringify(notes))
   }, [notes])
-
-  useEffect(() => {
-    if (userName) localStorage.setItem("notesUserName", userName)
-  }, [userName])
 
   const addOrUpdateNote = () => {
     if (!newTitle.trim() || !newNote.trim() || !userName.trim()) return
@@ -50,9 +49,9 @@ export default function Notes() {
       setNotes(
         notes.map((note) => (note.id === editingNote.id ? { ...note, title: newTitle, content: newNote } : note)),
       )
-      showNotification("Note Updated", {
-        body: `Note "${newTitle}" has been updated`,
-        icon: "/favicon.ico",
+      toast({
+        title: "Note Updated",
+        description: `Note "${newTitle}" has been updated`,
       })
     } else {
       const note: Note = {
@@ -64,9 +63,9 @@ export default function Notes() {
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       }
       setNotes([note, ...notes])
-      showNotification("New Note Added", {
-        body: `Note "${newTitle}" created by ${userName}`,
-        icon: "/favicon.ico",
+      toast({
+        title: "New Note Added",
+        description: `Note "${newTitle}" created by ${userName}`,
       })
     }
 
@@ -85,9 +84,9 @@ export default function Notes() {
 
   const deleteNote = (noteId: string, noteTitle: string) => {
     setNotes(notes.filter((n) => n.id !== noteId))
-    showNotification("Note Deleted", {
-      body: `Note "${noteTitle}" has been deleted`,
-      icon: "/favicon.ico",
+    toast({
+      title: "Note Deleted",
+      description: `Note "${noteTitle}" has been deleted`,
     })
   }
 
@@ -106,22 +105,21 @@ export default function Notes() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="lg" className="rounded-full bg-blue-600 hover:bg-blue-700">
-                <Plus className="mr-2 h-5 w-5" /> Add New Note
+                <Plus className="h-5 w-5 md:mr-2" />
+                <span className="hidden md:inline">Add New Note</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] w-[95vw] rounded-lg">
               <DialogHeader>
                 <DialogTitle>{editingNote ? "Edit Note" : "Add New Note"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
-                {!userName && (
-                  <Input
-                    type="text"
-                    placeholder="Your name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                  />
-                )}
+                <Input
+                  type="text"
+                  placeholder="Your name"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                />
                 <Input
                   type="text"
                   placeholder="Note title"
@@ -135,7 +133,11 @@ export default function Notes() {
                   rows={6}
                   className="resize-y min-h-[100px]"
                 />
-                <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={addOrUpdateNote}>
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={addOrUpdateNote}
+                  disabled={!newTitle.trim() || !newNote.trim() || !userName.trim()}
+                >
                   {editingNote ? "Update Note" : "Add Note"}
                 </Button>
               </div>
