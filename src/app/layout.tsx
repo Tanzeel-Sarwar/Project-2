@@ -9,7 +9,7 @@ import Footer from "@/components/footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Smart Tools Hub",
+  title: "Smart Tools",
   description: "Your one-stop solution for everyday tasks",
 }
 
