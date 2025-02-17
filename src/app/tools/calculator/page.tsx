@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +24,35 @@ export default function Calculator() {
   useEffect(() => {
     localStorage.setItem("calculatorHistory", JSON.stringify(history))
   }, [history])
+
+  const calculate = useCallback(() => {
+    try {
+      if (!display) return
+
+      const calculationExpression = display.replace(/×/g, "*").replace(/÷/g, "/")
+      const result = new Function("return " + calculationExpression)()
+      const formattedResult = Number.isInteger(result) ? result.toString() : Number(result).toFixed(4)
+
+      const calculationString = `${display} = ${formattedResult}`
+      setExpression(calculationString)
+      setDisplay(formattedResult)
+      setHistory((prev) => [calculationString, ...prev.slice(0, 19)])
+
+      toast({
+        title: "Calculation Complete",
+        description: calculationString,
+      })
+    } catch (error) {
+      console.error(error) // Log the error to the console
+      toast({
+        variant: "destructive",
+        title: "Calculation Error",
+        description: "Invalid expression",
+      })
+      setDisplay("")
+      setExpression("")
+    }
+  }, [display, toast])
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -55,7 +84,7 @@ export default function Calculator() {
 
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [])
+  }, [calculate])
 
   const handleInput = (value: string) => {
     setDisplay((prev) => prev + value)
@@ -69,34 +98,6 @@ export default function Calculator() {
   const handleClear = () => {
     setDisplay("")
     setExpression("")
-  }
-
-  const calculate = () => {
-    try {
-      if (!display) return
-
-      const calculationExpression = display.replace(/×/g, "*").replace(/÷/g, "/")
-      const result = new Function("return " + calculationExpression)()
-      const formattedResult = Number.isInteger(result) ? result.toString() : Number(result).toFixed(4)
-
-      const calculationString = `${display} = ${formattedResult}`
-      setExpression(calculationString)
-      setDisplay(formattedResult)
-      setHistory((prev) => [calculationString, ...prev.slice(0, 19)])
-
-      toast({
-        title: "Calculation Complete",
-        description: calculationString,
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Calculation Error",
-        description: "Invalid expression",
-      })
-      setDisplay("")
-      setExpression("")
-    }
   }
 
   const buttons = ["C", "(", ")", "÷", "7", "8", "9", "×", "4", "5", "6", "-", "1", "2", "3", "+", "0", ".", "⌫", "="]
@@ -168,4 +169,3 @@ export default function Calculator() {
     </div>
   )
 }
-
