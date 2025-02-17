@@ -36,7 +36,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-[100px]" />
         <div className="relative max-w-4xl mx-auto">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 animate-fade-in">
-            Welcome to Smart Tools Hub
+            Welcome to Smart Tools
           </h1>
           <p className="text-gray-600 text-lg md:text-xl mb-8 animate-fade-in">
             Your one-stop solution for everyday tasks
